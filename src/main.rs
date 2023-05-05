@@ -21,7 +21,7 @@ impl Ui {
         self.row = row;
         self.col = col;
     }
-    fn begin_list(&mut self, id: Id){
+    fn begin_list(&mut self, id: Id) {
         /* Disallow nested lists. */
         assert!(self.list_curr.is_none(), "Nested lists are not allowed.");
         self.list_curr = Some(id);
@@ -49,10 +49,38 @@ impl Ui {
         /* Rendering things downwards. */
         self.row += 1;
     }
-    fn end_list(&mut self ){
+    fn end_list(&mut self) {
         self.list_curr = None;
     }
     fn end(&mut self) {
+    }
+}
+
+/* View focus. */
+enum Tab {
+    Todo,
+    Done
+}
+
+impl Tab {
+    fn toggle(&self) -> Self {
+        match self {
+            Tab::Todo => Tab::Done,
+            Tab::Done => Tab::Todo
+        }
+    }
+}
+
+/* Movemens helpers. */
+fn list_up(list_curr: &mut usize) {
+    if *list_curr > 0 {
+        *list_curr -= 1;
+    }
+}
+
+fn list_down(list: &Vec<String>, list_curr: &mut usize) {
+    if *list_curr + 1 < list.len() {
+        *list_curr += 1;
     }
 }
 
@@ -86,6 +114,7 @@ fn main () {
         "Make a cup of tea".to_string()
     ];
     let mut done_curr: usize = 0;
+    let mut focus = Tab::Todo;
 
     /* Create default interface. */
     let mut ui = Ui::default();
@@ -98,25 +127,33 @@ fn main () {
         ui.begin(0, 0);
 
         {
-            ui.label("TODO:",REGULAR_PAIR);
-            ui.begin_list(todo_curr);
+            /* Match view focus. */
+            match focus {
+                Tab::Todo => {
+                    ui.label("[TODO] DONE ",REGULAR_PAIR);
+                    ui.label("------------",REGULAR_PAIR);
 
-            for (index, todo) in todos.iter().enumerate() {
-               ui.list_element(&format!("- [] {}", todo), index);
+                    ui.begin_list(todo_curr);
+        
+                    for (index, todo) in todos.iter().enumerate() {
+                       ui.list_element(&format!("- [] {}", todo), index);
+                    }
+            
+                    ui.end_list();
+                }
+                Tab::Done => {
+                    ui.label(" TODO [DONE]",REGULAR_PAIR);
+                    ui.label("------------",REGULAR_PAIR);
+
+                    ui.begin_list(done_curr);
+
+                    for (index, done) in dones.iter().enumerate() {
+                        ui.list_element(&format!("- [x] {}", done), index);
+                    }
+                    
+                    ui.end_list();
+                }
             }
-    
-            ui.end_list();
-    
-            /* Separation. */
-            ui.label("------------------------------", REGULAR_PAIR);
-    
-            /* 'Done' list */
-            ui.label("DONE:",REGULAR_PAIR);
-            ui.begin_list(0);
-            for (index, done) in dones.iter().enumerate() {
-                ui.list_element(&format!("- [x] {}", done), index + 1);
-            }
-            ui.end_list();
     
             ui.end();
      
@@ -130,22 +167,37 @@ fn main () {
             match key as u8 as char {
                 'q' => quit = true,
                 'w' => {
-                    if todo_curr > 0 {
-                        todo_curr -= 1;
+                    match focus {
+                        Tab::Todo => list_up(&mut todo_curr),
+                        Tab::Done => list_up(&mut done_curr)
                     }
                 }
                 's' => {
-                    if todo_curr + 1 < todos.len() {
-                        todo_curr += 1;
+                    match focus {
+                        Tab::Todo => list_down(&todos, &mut todo_curr),
+                        Tab::Done => list_down(&dones, &mut done_curr)
                     }
                 }
-                '\n' => {
-                    if todo_curr < todos.len() {
-                        let removed_todo = todos.remove(todo_curr);
-                        dones.push(removed_todo);
+                '\n' => match focus {
+                    Tab::Todo => {
+                        if todo_curr < todos.len() {
+                            /* Remove todo from todos, and add to dones. */
+                            dones.push(todos.remove(todo_curr));
+                        }
+                    }
+                    Tab::Done => {
+                        if done_curr < dones.len() {
+                            /* Remove todo from dones, and add back to todos. */
+                            todos.push(dones.remove(todo_curr));
+                        } 
                     }
                 }
-                _ => {}
+                '\t' => {
+                    focus = focus.toggle();
+                }
+                _ => {
+                    // todos.push(format!("{}", key));
+                }
             }
         }
     }
