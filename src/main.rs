@@ -26,7 +26,7 @@ impl Ui {
         assert!(self.list_curr.is_none(), "Nested lists are not allowed.");
         self.list_curr = Some(id);
     }
-    fn list_element(&mut self, label: &str, id: Id){
+    fn list_element(&mut self, label: &str, id: Id) -> bool {
         /* Run list_element only inside list. */
         let id_curr = self.list_curr.expect("Not allowed to create list elements outside of lists.");
         let pair = {
@@ -38,6 +38,8 @@ impl Ui {
             }
         };
         self.label(label, pair);
+
+        return false;
     }
     fn label(&mut self, text: &str, pair: i16) {
         mv(self.row as i32, self.col as i32);
@@ -78,7 +80,7 @@ fn main () {
     ];
     let mut todo_curr: usize = 0;
 
-    let dones: Vec<String> = vec![
+    let mut dones: Vec<String> = vec![
         "Start the stream".to_string(),
         "Have a breakfast".to_string(),
         "Make a cup of tea".to_string()
@@ -90,6 +92,7 @@ fn main () {
 
     /* Event loop. */
     while !quit {
+        erase();
 
         /* Start the interface. */
         ui.begin(0, 0);
@@ -109,9 +112,9 @@ fn main () {
     
             /* 'Done' list */
             ui.label("DONE:",REGULAR_PAIR);
-            ui.begin_list(done_curr + 6969);
+            ui.begin_list(0);
             for (index, done) in dones.iter().enumerate() {
-                ui.list_element(&format!("- [x] {}", done), index + 6969);
+                ui.list_element(&format!("- [x] {}", done), index + 1);
             }
             ui.end_list();
     
@@ -132,8 +135,14 @@ fn main () {
                     }
                 }
                 's' => {
-                    if todo_curr != todos.len() - 1 {
+                    if todo_curr + 1 < todos.len() {
                         todo_curr += 1;
+                    }
+                }
+                '\n' => {
+                    if todo_curr < todos.len() {
+                        let removed_todo = todos.remove(todo_curr);
+                        dones.push(removed_todo);
                     }
                 }
                 _ => {}
