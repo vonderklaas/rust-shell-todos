@@ -8,7 +8,7 @@ const HIGHLIGHT_PAIR: i16 = 1;
 /* Types. */
 type Id = usize;
 
-/* Terminal interface. */
+/* Ui interface. */
 #[derive(Default)]
 struct Ui {
     list_curr: Option<Id>,
@@ -70,14 +70,20 @@ fn main () {
 
     /* Init application state. */
     let mut quit= false;
+
     let mut todos: Vec<String> = vec![
         "Buy a bread".to_string(),
         "Write the todo app".to_string(),
         "Make a cup of tea".to_string()
     ];
-    let dones: Vec<String> = Vec::new();
+    let mut todo_curr: usize = 0;
+
+    let dones: Vec<String> = vec![
+        "Start the stream".to_string(),
+        "Have a breakfast".to_string(),
+        "Make a cup of tea".to_string()
+    ];
     let mut done_curr: usize = 0;
-    let mut todo_curr: usize =  0;
 
     /* Create default interface. */
     let mut ui = Ui::default();
@@ -87,46 +93,51 @@ fn main () {
 
         /* Start the interface. */
         ui.begin(0, 0);
-        ui.begin_list(todo_curr);
 
-        for (index, todo) in todos.iter().enumerate() {
-           ui.list_element(todo, index);
-        }
+        {
+            ui.label("TODO:",REGULAR_PAIR);
+            ui.begin_list(todo_curr);
 
-        ui.end_list();
-
-        /* Separation. */
-        // ui.label("------------------------------", REGULAR_PAIR);
-
-        // /* 'Done' list */
-        // ui.begin_list(done_curr);
-        // for (index, done) in dones.iter().enumerate() {
-        //     ui.list_element(done, index);
-        // }
-        // ui.end_list();
-        
-        ui.end();
- 
-        /* Update the screen. */
-        refresh();
-
-        /* Wait for a key press. */
-        let key = getch();
-
-        /* Handle input from the user. */
-        match key as u8 as char {
-            'q' => quit = true,
-            'w' => {
-                if todo_curr > 0 {
-                    todo_curr -= 1;
-                }
+            for (index, todo) in todos.iter().enumerate() {
+               ui.list_element(&format!("- [] {}", todo), index);
             }
-            's' => {
-                if todo_curr != todos.len() - 1 {
-                    todo_curr += 1;
-                }
+    
+            ui.end_list();
+    
+            /* Separation. */
+            ui.label("------------------------------", REGULAR_PAIR);
+    
+            /* 'Done' list */
+            ui.label("DONE:",REGULAR_PAIR);
+            ui.begin_list(done_curr + 6969);
+            for (index, done) in dones.iter().enumerate() {
+                ui.list_element(&format!("- [x] {}", done), index + 6969);
             }
-            _ => {}
+            ui.end_list();
+    
+            ui.end();
+     
+            /* Update the screen. */
+            refresh();
+    
+            /* Wait for a key press. */
+            let key = getch();
+    
+            /* Handle input from the user. */
+            match key as u8 as char {
+                'q' => quit = true,
+                'w' => {
+                    if todo_curr > 0 {
+                        todo_curr -= 1;
+                    }
+                }
+                's' => {
+                    if todo_curr != todos.len() - 1 {
+                        todo_curr += 1;
+                    }
+                }
+                _ => {}
+            }
         }
     }
 
