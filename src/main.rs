@@ -10,6 +10,10 @@ fn main () {
     /* Init ncurses. */
     initscr();
 
+    /* Disable cursor and keys echo. */
+    curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);
+    noecho();
+
     /* Init colors. */
     start_color();
     init_pair(REGULAR_PAIR, COLOR_WHITE, COLOR_BLACK);
