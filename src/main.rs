@@ -1,12 +1,20 @@
-extern crate termion;
+extern crate ncurses;
+use ncurses::*;
 
-use termion::{color, style};
+fn main () {
 
-// use std::io;
+  /* Start ncurses. */
+  initscr();
 
-fn main() {
-    println!("{}Red", color::Fg(color::Red));
-    println!("{}Blue", color::Fg(color::Blue));
-    println!("{}Blue'n'Bold{}", style::Bold, style::Reset);
-    println!("{}Just plain italic", style::Italic);
+  /* Print to the back buffer. */
+  addstr("Hello, world!");
+
+  /* Update the screen. */
+  refresh();
+
+  /* Wait for a key press. */
+  getch();
+
+  /* Terminate ncurses. */
+  endwin();
 }
