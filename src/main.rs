@@ -22,7 +22,7 @@ fn main () {
         "Write the todo app",
         "Make a cup of tea"
     ];
-    let todo_curr: usize =  0;
+    let mut todo_curr: usize =  0;
 
     /* Event loop. */
     while !quit {
@@ -43,7 +43,7 @@ fn main () {
             addstr(*todo);
             attr_off(COLOR_PAIR(pair));
         }
-
+ 
         /* Update the screen. */
         refresh();
 
@@ -53,6 +53,16 @@ fn main () {
         /* Handle input from the user. */
         match key as u8 as char {
             'q' => quit = true,
+            'w' => {
+                if todo_curr > 0 {
+                    todo_curr -= 1;
+                }
+            }
+            's' => {
+                if todo_curr != todos.len() - 1 {
+                    todo_curr += 1;
+                }
+            }
             _ => {}
         }
     }
