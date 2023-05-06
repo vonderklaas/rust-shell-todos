@@ -84,6 +84,17 @@ fn list_down(list: &Vec<String>, list_curr: &mut usize) {
     }
 }
 
+fn list_transfer(list_dst: &mut Vec<String>, list_src: &mut Vec<String>, list_src_curr: &mut usize) {
+    if *list_src_curr < list_src.len() {
+        /* Remove todo from list_src, and add to list_dst. */
+        list_dst.push(list_src.remove(*list_src_curr));
+        /* Prevent from selecting invisible todo */
+        if *list_src_curr >= list_src.len() && list_src.len() > 0 {
+            *list_src_curr = list_src.len() - 1;
+        }
+    }
+}
+
 fn main () {
 
     /* Init ncurses. */
@@ -180,16 +191,10 @@ fn main () {
                 }
                 '\n' => match focus {
                     Tab::Todo => {
-                        if todo_curr < todos.len() {
-                            /* Remove todo from todos, and add to dones. */
-                            dones.push(todos.remove(todo_curr));
-                        }
+                        list_transfer(&mut dones, &mut todos, &mut todo_curr);
                     }
                     Tab::Done => {
-                        if done_curr < dones.len() {
-                            /* Remove todo from dones, and add back to todos. */
-                            todos.push(dones.remove(todo_curr));
-                        } 
+                        list_transfer(&mut todos, &mut dones, &mut done_curr);
                     }
                 }
                 '\t' => {
