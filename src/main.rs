@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, BufRead}; // Write
+use std::io::{self, Write, BufRead};
 use std::env::args;
 use std::process;
 extern crate ncurses;
@@ -82,10 +82,10 @@ fn parse_item(line: &str) -> Option<(Status, &str)> {
     let todo_prefix = "TODO: ";
     let done_prefix = "DONE: ";
     if line.starts_with(todo_prefix) {
-        return Some((Status::Todo, &line[todo_prefix.len()..]));
+        return Some((Status::Todo, &line[todo_prefix.len()..]))
     }
     if line.starts_with(done_prefix) {
-        return Some((Status::Done, &line[done_prefix.len()..]));
+        return Some((Status::Done, &line[done_prefix.len()..]))
     }
     return None;
 }
@@ -114,6 +114,30 @@ fn list_transfer(list_dst: &mut Vec<String>, list_src: &mut Vec<String>, list_sr
     }
 }
 
+fn load_state(todos: &mut Vec<String>, dones: &mut Vec<String>, file_path: &str) {
+    let file = File::open(file_path).unwrap();
+    for (index, line) in io::BufReader::new(file).lines().enumerate() {
+        match parse_item(&line.unwrap()) {
+            Some((Status::Todo, title)) => todos.push(title.to_string()),
+            Some((Status::Done, title)) => dones.push(title.to_string()),
+            None => {
+                eprintln!("{}:{}: ERROR: ill-formed item line", file_path, index + 1);
+                process::exit(1);
+            }
+        }
+    }
+}
+
+fn save_state(todos: &Vec<String>, dones: &Vec<String>, file_path: &str) {
+    let mut file = File::create(file_path).unwrap();
+    for todo in todos.iter() {
+        writeln!(file, "TODO: {}", todo).unwrap();
+    }
+    for done in dones.iter() {
+        writeln!(file, "DONE: {}", done).unwrap();
+    }
+}
+
 // TODO:
 // - persist the state of the application (text file?)
 // - add new items to TODO
@@ -121,6 +145,7 @@ fn list_transfer(list_dst: &mut Vec<String>, list_src: &mut Vec<String>, list_sr
 // - edit the items
 // - keep track of date when the item was DONE
 // - undo system
+// - save the state on SIGINT
 
 fn main () {
 
@@ -142,27 +167,10 @@ fn main () {
     let mut dones = Vec::<String>::new();
 
     let mut todo_curr: usize = 0;
-    let mut done_curr: usize = 0;
+    let mut done_curr: usize = 0;     
 
-    {
-        let file = File::open(file_path.clone()).unwrap();
-        for (index, line_result) in io::BufReader::new(file).lines().enumerate() {
-            let line = line_result.unwrap();
-            match parse_item(&line) {
-                Some((Status::Todo, title)) => {
-                    todos.push(title.to_string())
-                },
-                Some((Status::Done, title)) => {
-                    dones.push(title.to_string())
-                }
-                None => {
-                    eprintln!("{}:{}: ERROR: bad formatted item line", file_path, index + 1);
-                    process::exit(1);
-                }
-            }
-            println!("{:?}", parse_item(&line));
-        }
-    }        
+    /* Load state. */
+    load_state(&mut todos, &mut dones, &file_path);
 
     /* Init ncurses. */
     initscr();
@@ -227,15 +235,6 @@ fn main () {
             /* Handle input from the user. */
             match key as u8 as char {
                 'q' => quit = true,
-                // 'e' => {
-                //     let mut file = File::create("TODO").unwrap();
-                //     for todo in todos.iter() {
-                //         writeln!(file, "TODO: {}", todo);
-                //     }
-                //     for done in dones.iter() {
-                //         writeln!(file, "DONE: {}", done);
-                //     }
-                // }
                 'w' => {
                     match tab {
                         Status::Todo => list_up(&mut todo_curr),
@@ -265,6 +264,9 @@ fn main () {
             }
         }
     }
+
+    /* Save on close or 'q'. */
+    save_state(&todos, &dones, &file_path);
 
     /* Terminate ncurses. */
     endwin();
