@@ -1,3 +1,7 @@
+use std::fs::File;
+use std::io::{self, BufRead}; // Write
+use std::env::args;
+use std::process;
 extern crate ncurses;
 use ncurses::*;
 
@@ -57,21 +61,36 @@ impl Ui {
 }
 
 /* View focus. */
-enum Tab {
+#[derive(Debug)]
+enum Status {
     Todo,
     Done
 }
 
-impl Tab {
+
+impl Status {
     fn toggle(&self) -> Self {
         match self {
-            Tab::Todo => Tab::Done,
-            Tab::Done => Tab::Todo
+            Status::Todo => Status::Done,
+            Status::Done => Status::Todo
         }
     }
 }
 
-/* Movemens helpers. */
+/* To which vector we have to push the item. */
+fn parse_item(line: &str) -> Option<(Status, &str)> {
+    let todo_prefix = "TODO: ";
+    let done_prefix = "DONE: ";
+    if line.starts_with(todo_prefix) {
+        return Some((Status::Todo, &line[todo_prefix.len()..]));
+    }
+    if line.starts_with(done_prefix) {
+        return Some((Status::Done, &line[done_prefix.len()..]));
+    }
+    return None;
+}
+
+/* Movements helpers. */
 fn list_up(list_curr: &mut usize) {
     if *list_curr > 0 {
         *list_curr -= 1;
@@ -95,39 +114,70 @@ fn list_transfer(list_dst: &mut Vec<String>, list_src: &mut Vec<String>, list_sr
     }
 }
 
+// TODO:
+// - persist the state of the application (text file?)
+// - add new items to TODO
+// - delete items
+// - edit the items
+// - keep track of date when the item was DONE
+// - undo system
+
 fn main () {
+
+    /* Prints each argument on a separate line. */
+    let mut args = args();
+    args.next().unwrap();
+    let file_path = match args.next() {
+        Some(file_path) => file_path,
+        None => {
+            eprintln!("Usage: rust-todo-cli <file-path>");
+            eprintln!("ERROR: file path is not provided");
+            process::exit(1);
+        }
+    };
+    /* Init application state. */
+    let mut quit= false;
+
+    let mut todos = Vec::<String>::new();
+    let mut dones = Vec::<String>::new();
+
+    let mut todo_curr: usize = 0;
+    let mut done_curr: usize = 0;
+
+    {
+        let file = File::open(file_path.clone()).unwrap();
+        for (index, line_result) in io::BufReader::new(file).lines().enumerate() {
+            let line = line_result.unwrap();
+            match parse_item(&line) {
+                Some((Status::Todo, title)) => {
+                    todos.push(title.to_string())
+                },
+                Some((Status::Done, title)) => {
+                    dones.push(title.to_string())
+                }
+                None => {
+                    eprintln!("{}:{}: ERROR: bad formatted item line", file_path, index + 1);
+                    process::exit(1);
+                }
+            }
+            println!("{:?}", parse_item(&line));
+        }
+    }        
 
     /* Init ncurses. */
     initscr();
 
     /* Disable cursor and keys echo. */
-    curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);
     noecho();
+    curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);
 
     /* Init colors. */
     start_color();
     init_pair(REGULAR_PAIR, COLOR_WHITE, COLOR_BLACK);
     init_pair(HIGHLIGHT_PAIR, COLOR_BLACK, COLOR_WHITE);
 
-    /* Init application state. */
-    let mut quit= false;
-
-    let mut todos: Vec<String> = vec![
-        "Buy a bread".to_string(),
-        "Write the todo app".to_string(),
-        "Make a cup of tea".to_string()
-    ];
-    let mut todo_curr: usize = 0;
-
-    let mut dones: Vec<String> = vec![
-        "Start the stream".to_string(),
-        "Have a breakfast".to_string(),
-        "Make a cup of tea".to_string()
-    ];
-    let mut done_curr: usize = 0;
-    let mut focus = Tab::Todo;
-
     /* Create default interface. */
+    let mut tab = Status::Todo;
     let mut ui = Ui::default();
 
     /* Event loop. */
@@ -138,9 +188,9 @@ fn main () {
         ui.begin(0, 0);
 
         {
-            /* Match view focus. */
-            match focus {
-                Tab::Todo => {
+            /* Match view tab. */
+            match tab {
+                Status::Todo => {
                     ui.label("[TODO] DONE ",REGULAR_PAIR);
                     ui.label("------------",REGULAR_PAIR);
 
@@ -152,7 +202,7 @@ fn main () {
             
                     ui.end_list();
                 }
-                Tab::Done => {
+                Status::Done => {
                     ui.label(" TODO [DONE]",REGULAR_PAIR);
                     ui.label("------------",REGULAR_PAIR);
 
@@ -177,28 +227,37 @@ fn main () {
             /* Handle input from the user. */
             match key as u8 as char {
                 'q' => quit = true,
+                // 'e' => {
+                //     let mut file = File::create("TODO").unwrap();
+                //     for todo in todos.iter() {
+                //         writeln!(file, "TODO: {}", todo);
+                //     }
+                //     for done in dones.iter() {
+                //         writeln!(file, "DONE: {}", done);
+                //     }
+                // }
                 'w' => {
-                    match focus {
-                        Tab::Todo => list_up(&mut todo_curr),
-                        Tab::Done => list_up(&mut done_curr)
+                    match tab {
+                        Status::Todo => list_up(&mut todo_curr),
+                        Status::Done => list_up(&mut done_curr)
                     }
                 }
                 's' => {
-                    match focus {
-                        Tab::Todo => list_down(&todos, &mut todo_curr),
-                        Tab::Done => list_down(&dones, &mut done_curr)
+                    match tab {
+                        Status::Todo => list_down(&todos, &mut todo_curr),
+                        Status::Done => list_down(&dones, &mut done_curr)
                     }
                 }
-                '\n' => match focus {
-                    Tab::Todo => {
+                '\n' => match tab {
+                    Status::Todo => {
                         list_transfer(&mut dones, &mut todos, &mut todo_curr);
                     }
-                    Tab::Done => {
+                    Status::Done => {
                         list_transfer(&mut todos, &mut dones, &mut done_curr);
                     }
                 }
                 '\t' => {
-                    focus = focus.toggle();
+                    tab = tab.toggle();
                 }
                 _ => {
                     // todos.push(format!("{}", key));
