@@ -1,6 +1,6 @@
 ### Terminal Todo
 
-Interactive Terminal Todo Application in Rust
+This is an interactive terminal todo application in *Rust* with help of ncurses, a very thin wrapper around the ncurses TUI library, which gives control over terminal interface
 
 ### Quick Start
 
