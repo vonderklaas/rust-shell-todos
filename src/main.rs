@@ -2,8 +2,9 @@ use std::fs::File;
 use std::io::{self, Write, BufRead};
 use std::env::args;
 use std::process;
-extern crate ncurses;
+
 use ncurses::*;
+extern crate ncurses;
 
 /* Constants. */
 const REGULAR_PAIR: i16 = 0;
@@ -12,7 +13,6 @@ const HIGHLIGHT_PAIR: i16 = 1;
 /* Types. */
 type Id = usize;
 
-/* Ui interface. */
 #[derive(Default)]
 struct Ui {
     list_curr: Option<Id>,
@@ -26,23 +26,21 @@ impl Ui {
         self.col = col;
     }
     fn begin_list(&mut self, id: Id) {
-        /* Disallow nested lists. */
+        /* Prevent from creating  nested lists. */
         assert!(self.list_curr.is_none(), "Nested lists are not allowed.");
         self.list_curr = Some(id);
     }
     fn list_element(&mut self, label: &str, id: Id) -> bool {
-        /* Run list_element only inside list. */
+        /* Prevent running list_element outside of list. */
         let id_curr = self.list_curr.expect("Not allowed to create list elements outside of lists.");
         let pair = {
             if id_curr == id {
-                /* Render in a different style. */
                 HIGHLIGHT_PAIR
             } else {
                 REGULAR_PAIR
             }
         };
         self.label(label, pair);
-
         return false;
     }
     fn label(&mut self, text: &str, pair: i16) {
@@ -50,7 +48,6 @@ impl Ui {
         attron(COLOR_PAIR(pair));
         addstr(text);
         attroff(COLOR_PAIR(pair));
-        /* Rendering things downwards. */
         self.row += 1;
     }
     fn end_list(&mut self) {
@@ -60,13 +57,12 @@ impl Ui {
     }
 }
 
-/* View focus. */
+/* Status of view mode. */
 #[derive(Debug)]
 enum Status {
     Todo,
     Done
 }
-
 
 impl Status {
     fn toggle(&self) -> Self {
@@ -77,7 +73,7 @@ impl Status {
     }
 }
 
-/* To which vector we have to push the item. */
+/* Parse item from text file. */
 fn parse_item(line: &str) -> Option<(Status, &str)> {
     let todo_prefix = "TODO: ";
     let done_prefix = "DONE: ";
@@ -138,18 +134,8 @@ fn save_state(todos: &Vec<String>, dones: &Vec<String>, file_path: &str) {
     }
 }
 
-// TODO:
-// - persist the state of the application (text file?)
-// - add new items to TODO
-// - delete items
-// - edit the items
-// - keep track of date when the item was DONE
-// - undo system
-// - save the state on SIGINT
-
 fn main () {
 
-    /* Prints each argument on a separate line. */
     let mut args = args();
     args.next().unwrap();
     let file_path = match args.next() {
@@ -160,12 +146,11 @@ fn main () {
             process::exit(1);
         }
     };
-    /* Init application state. */
-    let mut quit= false;
 
+    /* Application state. */
+    let mut quit= false;
     let mut todos = Vec::<String>::new();
     let mut dones = Vec::<String>::new();
-
     let mut todo_curr: usize = 0;
     let mut done_curr: usize = 0;     
 
@@ -258,14 +243,12 @@ fn main () {
                 '\t' => {
                     tab = tab.toggle();
                 }
-                _ => {
-                    // todos.push(format!("{}", key));
-                }
+                _ => {}
             }
         }
     }
 
-    /* Save on close or 'q'. */
+    /* Persist state on close or 'q'. */
     save_state(&todos, &dones, &file_path);
 
     /* Terminate ncurses. */
