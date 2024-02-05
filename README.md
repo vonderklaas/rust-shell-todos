@@ -1,5 +1,7 @@
 ### Quick Start
 
+Run application
+
 ```console
 cargo run TODO
 ```
