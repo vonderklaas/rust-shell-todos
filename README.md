@@ -1,12 +1,10 @@
-rusty-do
-
-## Quick Start?
+### Quick Start?
 
 ```console
 cargo run TODO
 ```
 
-## Controls
+### Controls
 
 | Keys             | Description                     |
 | ---------------- | ------------------------------- |
